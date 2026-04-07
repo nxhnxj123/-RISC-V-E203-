@@ -1,0 +1,532 @@
+#include "PID.h"
+float iiii = 0;
+//************************************************//
+//角速度环
+//************************************************//
+//x轴 正对屏幕 rol_kalman
+//屏幕上方往下倾，下方往上仰，这样的旋转方向，rol_kalman角度为正方向增加
+//负向反之
+float DG_x_Kp = 20//27//36
+;
+float DG_x_Ki = 0.3//0.21//0.52
+;
+float DG_x_Kd = 2//3//5
+;
+
+//y轴 垂直屏幕 pit_kalman
+//屏幕左侧往下倾，右侧往上仰，这样的旋转方向，pit_kalman角度为正方向增加
+//负向反之
+float DG_y_Kp = 20//27//37
+;
+float DG_y_Ki = 0.3//0.21//0.37
+;
+float DG_y_Kd = 2//3//5
+;
+
+//************************************************//
+//角度环
+//************************************************//
+//x轴 正对屏幕 rol_kalman
+//屏幕上方往下倾，下方往上仰，这样的旋转方向，rol_kalman角度为正方向增加
+//负向反之
+float Gyro_x_Kp = 20//16
+;
+float Gyro_x_Ki = 0//0
+;
+float Gyro_x_Kd = 2//2
+;
+
+//y轴 垂直屏幕 pit_kalman
+//屏幕左侧往下倾，右侧往上仰，这样的旋转方向，pit_kalman角度为正方向增加
+//负向反之
+float Gyro_y_Kp = 20//16
+;
+float Gyro_y_Ki = 0//0
+;
+float Gyro_y_Kd = 2//3
+;
+
+
+//************************************************//
+//角速度环
+//************************************************//
+
+//角速度位置式pid
+//输入参数：期望角速度，实际角速度
+//输出参数：pwm
+float DG_PID_X(float Ek_Distance, float Now_Distance)
+{
+	static float DG_X_Last_error, DG_X_error_sum; 		//增量式的速度都是基于上一次总的速度做出的改变
+	float DG_X_error, DG_X_pwm;
+	
+	//起飞后再做积分
+	if(fly_flag == 1)
+	{
+		DG_X_error = Ek_Distance - Now_Distance;
+		
+		if(wdvhc_abs(DG_X_error)<5.2f)
+			DG_X_error_sum += DG_X_error;
+		
+		//积分仙府
+		DG_X_error_sum = DG_X_error_sum > 100 ? 100 :(DG_X_error_sum < -100 ? -100 : DG_X_error_sum);
+		
+		DG_X_pwm = DG_x_Kp * DG_X_error 
+						 + DG_x_Ki * DG_X_error_sum 
+						 + DG_x_Kd * (DG_X_error - DG_X_Last_error);
+		
+		DG_X_Last_error = DG_X_error;
+	}
+	else
+	{
+		//积分清零
+		DG_X_error_sum = 0;
+		DG_X_pwm = 0;
+		DG_X_Last_error = 0;
+	}
+	
+
+	
+	return DG_X_pwm;
+}
+
+//角速度位置式pid
+//输入参数：期望角速度，实际角速度
+//输出参数：pwm
+float DG_PID_Y(float Ek_Distance, float Now_Distance)
+{
+	static float DG_Y_Last_error, DG_Y_error_sum; 		//增量式的速度都是基于上一次总的速度做出的改变
+	float DG_Y_error, DG_Y_pwm;
+	
+	//起飞后再做积分
+	if(fly_flag == 1)
+	{
+		DG_Y_error = Ek_Distance - Now_Distance;
+		
+		if(wdvhc_abs(DG_Y_error)<5.2f)
+			DG_Y_error_sum += DG_Y_error;
+		
+		//积分仙府
+		DG_Y_error_sum = DG_Y_error_sum > 100 ? 100 :(DG_Y_error_sum < -100 ? -100 : DG_Y_error_sum);
+		
+		DG_Y_pwm = DG_y_Kp * DG_Y_error 
+						 + DG_y_Ki * DG_Y_error_sum 
+						 + DG_y_Kd * (DG_Y_error - DG_Y_Last_error);
+		
+		DG_Y_Last_error = DG_Y_error;
+	}
+	else
+	{
+		//积分清零
+		DG_Y_error_sum = 0;
+		DG_Y_pwm = 0;
+		DG_Y_Last_error = 0;
+	}
+	
+	return DG_Y_pwm;
+}
+
+//************************************************//
+//角度环
+//************************************************//
+
+//角度位置式pid
+//输入参数：期望角速度，实际角速度
+//输出参数：pwm
+float Gyro_PID_X(float Ek_Distance, float Now_Distance)
+{
+	static float Gyro_X_Last_error;//, Gyro_X_error_sum; 		//增量式的速度都是基于上一次总的速度做出的改变
+	float Gyro_X_error, Gyro_X_pwm;
+	
+	Gyro_X_error = Ek_Distance - Now_Distance;
+
+	//积分仙府
+	//Gyro_X_error_sum = Gyro_X_error > 110 ? 110 :(Gyro_X_error < -110 ? -110 : Gyro_X_error);
+	
+	Gyro_X_pwm = Gyro_x_Kp * Gyro_X_error 
+					   //+ Gyro_x_Ki * Gyro_X_error_sum 
+	           + Gyro_x_Kd * (Gyro_X_error - Gyro_X_Last_error);
+	
+	Gyro_X_Last_error = Gyro_X_error;
+	
+	return Gyro_X_pwm;
+}
+
+//角度位置式pid
+//输入参数：期望角速度，实际角速度
+//输出参数：pwm
+float Gyro_PID_Y(float Ek_Distance, float Now_Distance)
+{
+	static float Gyro_Y_Last_error;//, Gyro_Y_error_sum; 		//增量式的速度都是基于上一次总的速度做出的改变
+	float Gyro_Y_error, Gyro_Y_pwm;
+	
+	Gyro_Y_error = Ek_Distance - Now_Distance;
+	
+	//积分仙府
+	//Gyro_Y_error_sum = Gyro_Y_error > 110 ? 110 :(Gyro_Y_error < -110 ? -110 : Gyro_Y_error);
+	
+	Gyro_Y_pwm = Gyro_y_Kp * Gyro_Y_error 
+						 //+ Gyro_y_Ki * Gyro_Y_error_sum 
+	           + Gyro_y_Kd * (Gyro_Y_error - Gyro_Y_Last_error);
+	
+	Gyro_Y_Last_error = Gyro_Y_error;
+	
+	return Gyro_Y_pwm;
+}
+
+
+//-----------------------------------------------------------------------------------------------
+//----------------------------------------------转向环-------------------------------------------
+//-----------------------------------------------------------------------------------------------
+//z轴 机身旋转 yaw_kalman
+//正对屏幕，从上往下俯视，逆时针旋转为正，顺时针旋转为负
+float DG_z_Kp = 30
+;
+float DG_z_Ki = 0.2
+;
+float DG_z_Kd = 7
+;
+
+//z轴 机身旋转 yaw_kalman
+//正对屏幕，从上往下俯视，逆时针旋转为正，顺时针旋转为负
+float Gyro_z_Kp = 10
+;
+float Gyro_z_Ki = 0
+;
+float Gyro_z_Kd = 1//3
+;
+
+//角速度位置式pid
+//输入参数：期望角速度，实际角速度
+//输出参数：pwm
+float DG_PID_Z(float Ek_Distance, float Now_Distance)
+{
+	static float DG_Z_Last_error, DG_Z_error_sum; 		//增量式的速度都是基于上一次总的速度做出的改变
+	float DG_Z_error, DG_Z_pwm;
+	
+	//起飞后再做积分
+	if(fly_flag == 1)
+	{
+		DG_Z_error = Ek_Distance - Now_Distance;
+		
+		if(wdvhc_abs(DG_Z_error)<5.2f)
+			DG_Z_error_sum += DG_Z_error;
+		
+		//积分仙府
+		DG_Z_error_sum = DG_Z_error_sum > 100 ? 100 :(DG_Z_error_sum < -100 ? -100 : DG_Z_error_sum);
+		
+	
+		DG_Z_pwm = DG_z_Kp * DG_Z_error 
+						 + DG_z_Ki * DG_Z_error_sum 
+						 + DG_z_Kd * (DG_Z_error - DG_Z_Last_error);
+		
+		DG_Z_Last_error = DG_Z_error;
+	}
+	else
+	{
+		//积分清零
+		DG_Z_error_sum = 0;
+		DG_Z_pwm = 0;
+		DG_Z_Last_error = 0;
+	}
+	
+	return DG_Z_pwm;
+}
+
+//角度位置式pid
+//输入参数：期望角速度，实际角速度
+//输出参数：pwm
+float Gyro_PID_Z(float Ek_Distance, float Now_Distance)
+{
+	static float Gyro_Z_Last_error;//, Gyro_Z_error_sum; 		//增量式的速度都是基于上一次总的速度做出的改变
+	float Gyro_Z_error, Gyro_Z_pwm;
+	
+	Gyro_Z_error = Ek_Distance - Now_Distance;
+	
+	//积分仙府
+	//Gyro_Z_error_sum = Gyro_Z_error > 110 ? 110 :(Gyro_Z_error < -110 ? -110 : Gyro_Z_error);
+	
+	Gyro_Z_pwm = Gyro_z_Kp * Gyro_Z_error 
+						 //+ Gyro_Z_Ki * Gyro_Z_error_sum 
+	           + Gyro_z_Kd * (Gyro_Z_error - Gyro_Z_Last_error);
+	
+	Gyro_Z_Last_error = Gyro_Z_error;
+	
+	return Gyro_Z_pwm;
+}
+
+
+//---------------------------------------------------------------------------------------------
+//----------------------------------------------高度-------------------------------------------
+//---------------------------------------------------------------------------------------------
+//高度
+float Altitude_Kp = 0.1
+;
+float Altitude_Ki = 0
+;
+float Altitude_Kd = 0
+;
+
+float Alt_SP_Kp = 0
+;
+float Alt_SP_Ki = 0.001
+;
+
+//一秒一米 1000
+//40ms 25
+//20ms 12.5
+
+//高度位置式pid
+//输入参数：期望高度，实际高度
+//输出参数：期望速度
+float Altitude_PID(float Ek_Distance, float Now_Distance)
+{
+	static float Altitude_Last_error, Altitude_error_sum; 		//增量式的速度都是基于上一次总的速度做出的改变
+	float Altitude_error, Altitude_sp;
+	
+	//开启定高再做积分
+	if((Gyro_Alt_mode_flag == 1 || Altitude_mode_flag == 1 || Direct_Alt_mode_flag == 1) && fly_flag == 1)
+	{
+		Altitude_error = Ek_Distance - Now_Distance;
+		
+		if(wdvhc_abs(Altitude_error)<5.2f)
+			Altitude_error_sum += Altitude_error;
+		
+		//积分仙府
+		Altitude_error_sum = Altitude_error_sum > 10 ? 10 :(Altitude_error_sum < -10 ? -10 : Altitude_error_sum);
+		
+		Altitude_sp = Altitude_Kp * Altitude_error 
+								 + Altitude_Ki * Altitude_error_sum 
+								 + Altitude_Kd * (Altitude_error - Altitude_Last_error);
+		//输出仙府
+		Altitude_sp = Altitude_sp > 6 ? 6 :(Altitude_sp < -6 ? -6 : Altitude_sp);
+		
+		Altitude_Last_error = Altitude_error;
+	}
+	else
+	{
+		//积分清零
+		Altitude_error_sum = 0;
+		Altitude_sp = 0;
+		Altitude_Last_error = 0;
+	}
+	
+	return Altitude_sp;
+}
+
+
+//垂直速度增量PI
+//输入参数：期望速度，实际速度
+//输出参数：pwm
+float Alt_SPcurb(float Ek_Speed, float Now_Speed)
+{
+	static float pwm_Alt_SP, Last_Alt_SP_error; 		//增量式的速度都是基于上一次总的速度做出的改变
+	float Alt_SP_error;
+
+	Alt_SP_error = Ek_Speed - Now_Speed;
+	
+	pwm_Alt_SP += Alt_SP_Kp*(Alt_SP_error - Last_Alt_SP_error) 
+							+ Alt_SP_Ki*Alt_SP_error;
+	
+	//限幅
+  pwm_Alt_SP = pwm_Alt_SP > 100 ? 100 : (pwm_Alt_SP < -100 ? -100 : pwm_Alt_SP);          //限幅是按实际轮上扭矩期望来限的
+	
+	Last_Alt_SP_error = Alt_SP_error;
+	
+	return pwm_Alt_SP;
+}
+
+
+//---------------------------------------------------------------------------------------------
+//----------------------------------------------方向------------------------------------------
+//---------------------------------------------------------------------------------------------
+float Direct_X_Kp = 0
+;
+float Direct_X_Ki = 0
+;
+float Direct_X_Kd = 0
+;
+
+float Direct_Y_Kp = 0
+;           
+float Direct_Y_Ki = 0
+;            
+float Direct_Y_Kd = 0
+;
+
+float Direct_X_SP_Kp = 0
+;
+float Direct_X_SP_Ki = 0
+;
+
+float Direct_Y_SP_Kp = 0
+;
+float Direct_Y_SP_Ki = 0
+;
+
+//x位置pid
+//输入参数：期望高度，实际高度
+//输出参数：期望速度
+float Direct_X_PID(float Ek_Distance, float Now_Distance)
+{
+	static float Direct_X_Last_error, Direct_X_error_sum; 		//增量式的速度都是基于上一次总的速度做出的改变
+	float Direct_X_error, Direct_X_sp;
+	
+	//开启定高再做积分
+	if(Altitude_flag == 1 && fly_flag == 1)
+	{
+		Direct_X_error = Ek_Distance - Now_Distance;
+		
+		/*
+		if(wdvhc_abs(Altitude_error)<5.2f)
+			Altitude_error_sum += Altitude_error;
+		
+		//积分仙府
+		Altitude_error_sum = Altitude_error_sum > 6 ? 6 :(Altitude_error_sum < -6 ? -6 : Altitude_error_sum);
+		*/
+		Direct_X_sp = Direct_X_Kp * Direct_X_error 
+								 + Direct_X_Ki * Direct_X_error_sum 
+								 + Direct_X_Kd * (Direct_X_error - Direct_X_Last_error);
+		//输出仙府
+		Direct_X_sp = Direct_X_sp > 6 ? 6 :(Direct_X_sp < -6 ? -6 : Direct_X_sp);
+		
+		Direct_X_Last_error = Direct_X_error;
+	}
+	else
+	{
+		//积分清零
+		Direct_X_error_sum = 0;
+		Direct_X_sp = 0;
+		Direct_X_Last_error = 0;
+	}
+	
+	return Direct_X_sp;
+}
+
+
+//y位置pid
+//输入参数：期望高度，实际高度
+//输出参数：期望速度
+float Direct_Y_PID(float Ek_Distance, float Now_Distance)
+{
+	static float Direct_Y_Last_error, Direct_Y_error_sum; 		//增量式的速度都是基于上一次总的速度做出的改变
+	float Direct_Y_error, Direct_Y_sp;
+	
+	//开启定高再做积分
+	if(Altitude_flag == 1 && fly_flag == 1)
+	{
+		Direct_Y_error = Ek_Distance - Now_Distance;
+		
+		/*
+		if(wdvhc_abs(Altitude_error)<5.2f)
+			Altitude_error_sum += Altitude_error;
+		
+		//积分仙府
+		Altitude_error_sum = Altitude_error_sum > 6 ? 6 :(Altitude_error_sum < -6 ? -6 : Altitude_error_sum);
+		*/
+		Direct_Y_sp = Direct_Y_Kp * Direct_Y_error 
+								 + Direct_Y_Ki * Direct_Y_error_sum 
+								 + Direct_Y_Kd * (Direct_Y_error - Direct_Y_Last_error);
+		//输出仙府
+		Direct_Y_sp = Direct_Y_sp > 6 ? 6 :(Direct_Y_sp < -6 ? -6 : Direct_Y_sp);
+		
+		Direct_Y_Last_error = Direct_Y_error;
+	}
+	else
+	{
+		//积分清零
+		Direct_Y_error_sum = 0;
+		Direct_Y_sp = 0;
+		Direct_Y_Last_error = 0;
+	}
+	
+	return Direct_Y_sp;
+}
+
+
+//前后速度增量PI
+//输入参数：期望速度，实际速度
+//输出参数：期望角度
+float Direct_X_SPcurb(float Ek_Speed, float Now_Speed)
+{
+	static float pwm_Direct_X_SP, Last_Direct_X_SP_error; 		//增量式的速度都是基于上一次总的速度做出的改变
+	float Direct_X_SP_error;
+
+	Direct_X_SP_error = Ek_Speed - Now_Speed;
+	
+	pwm_Direct_X_SP += Alt_SP_Kp*(Direct_X_SP_error - Last_Direct_X_SP_error) 
+						+ Alt_SP_Ki*Direct_X_SP_error;
+	
+	//限幅
+  pwm_Direct_X_SP = pwm_Direct_X_SP > 10 ? 10 : (pwm_Direct_X_SP < -10 ? -10 : pwm_Direct_X_SP);          //限幅是按实际轮上扭矩期望来限的
+	
+	Last_Direct_X_SP_error = Direct_X_SP_error;
+	
+	return Direct_X_SP_error;
+}
+
+
+//左右速度增量PI
+//输入参数：期望速度，实际速度
+//输出参数：期望角度
+float Direct_Y_SPcurb(float Ek_Speed, float Now_Speed)
+{
+	static float pwm_Direct_Y_SP, Last_Direct_Y_SP_error; 		//增量式的速度都是基于上一次总的速度做出的改变
+	float Direct_Y_SP_error;
+
+	Direct_Y_SP_error = Ek_Speed - Now_Speed;
+	
+	pwm_Direct_Y_SP += Alt_SP_Kp*(Direct_Y_SP_error - Last_Direct_Y_SP_error) 
+						+ Alt_SP_Ki*Direct_Y_SP_error;
+	
+	//限幅
+  pwm_Direct_Y_SP = pwm_Direct_Y_SP > 10 ? 10 : (pwm_Direct_Y_SP < -10 ? -10 : pwm_Direct_Y_SP);          //限幅是按实际轮上扭矩期望来限的
+	
+	Last_Direct_Y_SP_error = Direct_Y_SP_error;
+	
+	return Direct_Y_SP_error;
+}
+
+//---------------------------------------------------------------------------------------------
+//----------------------------------------z轴加速度---------------------------------------------
+//---------------------------------------------------------------------------------------------
+float Direct_Y_Kp = 0
+;           
+float Direct_Y_Ki = 0
+;            
+float Direct_Y_Kd = 0
+;
+float Direct_Y_PID(float Ek_Distance, float Now_Distance)
+{
+	static float Direct_Y_Last_error, Direct_Y_error_sum; 		//增量式的速度都是基于上一次总的速度做出的改变
+	float Direct_Y_error, Direct_Y_sp;
+	
+	//开启定高再做积分
+	if(Altitude_flag == 1 && fly_flag == 1)
+	{
+		Direct_Y_error = Ek_Distance - Now_Distance;
+		
+		/*
+		if(wdvhc_abs(Altitude_error)<5.2f)
+			Altitude_error_sum += Altitude_error;
+		
+		//积分仙府
+		Altitude_error_sum = Altitude_error_sum > 6 ? 6 :(Altitude_error_sum < -6 ? -6 : Altitude_error_sum);
+		*/
+		Direct_Y_sp = Direct_Y_Kp * Direct_Y_error 
+								 + Direct_Y_Ki * Direct_Y_error_sum 
+								 + Direct_Y_Kd * (Direct_Y_error - Direct_Y_Last_error);
+		//输出仙府
+		Direct_Y_sp = Direct_Y_sp > 6 ? 6 :(Direct_Y_sp < -6 ? -6 : Direct_Y_sp);
+		
+		Direct_Y_Last_error = Direct_Y_error;
+	}
+	else
+	{
+		//积分清零
+		Direct_Y_error_sum = 0;
+		Direct_Y_sp = 0;
+		Direct_Y_Last_error = 0;
+	}
+	
+	return Direct_Y_sp;
+}
